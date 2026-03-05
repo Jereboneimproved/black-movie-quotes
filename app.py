@@ -2,6 +2,7 @@ import streamlit as st
 import google.generativeai as genai
 import random
 import pandas as pd
+import time
 
 # --- CLOUD CONFIGURATION ---
 if "GEMINI_API_KEY" in st.secrets:
@@ -24,7 +25,7 @@ if 'hint' not in st.session_state:
 if 'current_options' not in st.session_state:
     st.session_state.current_options = []
 
-# --- MOVIE DATA (Updated with 5 choices each) ---
+# --- MOVIE DATA ---
 quiz_data = [
     {"quote": "Surely you can't be serious. / I am serious... and don't call me Shirley.", "options": ["Airplane!", "Coming to America", "Friday", "The Wiz", "Do the Right Thing"], "answer": "Airplane!", "actor": "Kareem Abdul-Jabbar"},
     {"quote": "The royal penis is clean, your Highness.", "options": ["Coming to America", "Boomerang", "New Jack City", "Harlem Nights", "The Color Purple"], "answer": "Coming to America", "actor": "The Bathers"},
@@ -45,40 +46,53 @@ st.title("🎬 The Culture Quote Quiz")
 if st.session_state.quiz_step < len(quiz_data):
     current = quiz_data[st.session_state.quiz_step]
     
-    # SHUFFLE LOGIC: Only shuffle once per question
+    # Shuffle options once
     if not st.session_state.current_options:
         shuffled = current['options'].copy()
         random.shuffle(shuffled)
         st.session_state.current_options = shuffled
 
     st.subheader(f"Question {st.session_state.quiz_step + 1} of {len(quiz_data)}")
+    
+    # TIMER DISPLAY
+    timer_placeholder = st.empty()
+    
     st.info(f"\"{current['quote']}\"")
     
-    # Gemini Hint Button
     if st.button("💡 Need a Hint?"):
         try:
             model = genai.GenerativeModel('gemini-1.5-flash')
-            prompt = f"Give a funny, cryptic 1-sentence hint for the movie quote '{current['quote']}' featuring '{current['actor']}'. Don't name the movie. Use 'cookout' vibes."
+            prompt = f"Give a funny, cryptic 1-sentence hint for the movie quote '{current['quote']}' featuring '{current['actor']}'. Don't name the movie."
             response = model.generate_content(prompt)
             st.session_state.hint = response.text
         except:
-            st.session_state.hint = "Think about who was holding the plate at the cookout during this scene."
+            st.session_state.hint = "Time is ticking! Use your instincts."
             
     if st.session_state.hint:
         st.write(f"*{st.session_state.hint}*")
 
-    # Display Randomized Options
-    choice = st.radio("Choose the correct movie:", st.session_state.current_options)
+    choice = st.radio("Choose the correct movie:", st.session_state.current_options, key=f"q_{st.session_state.quiz_step}")
     
     if st.button("Submit Answer 🎯"):
         if choice == current['answer']:
             st.session_state.score += 1
         st.session_state.quiz_step += 1
         st.session_state.hint = ""
-        st.session_state.current_options = [] # Reset for next question
+        st.session_state.current_options = []
         st.rerun()
 
-# --- RESULTS & LEADERBOARD ---
+    # TIMER LOGIC: Runs after the UI is rendered
+    for seconds in range(20, -1, -1):
+        timer_placeholder.metric("⏳ Time Remaining", f"{seconds}s")
+        time.sleep(1)
+        if seconds == 0:
+            st.warning("Time's up! Moving to next question...")
+            time.sleep(1)
+            st.session_state.quiz_step += 1
+            st.session_state.current_options = []
+            st.rerun()
+
+# --- FINAL RESULTS ---
 else:
     total = len(quiz_data)
     score = st.session_state.score
@@ -91,10 +105,8 @@ else:
     else: grade, desc = "F", "First Time?"
 
     st.header(f"🏁 Final Grade: {grade}")
-    if grade == "A":
-        st.balloons()
-        st.success(f"🏆 {desc}! You are the keeper of the culture.")
-
+    st.markdown(f"### **{desc}**")
+    
     # SHARE MESSAGE
     share_text = f"I just got a Grade {grade} ({desc}) on the Culture Quote Quiz! Score: {score}/{total}. Can you beat me? 🎬🔥"
     st.text_area("Copy/Paste to your Group Chat:", value=share_text, height=70)
@@ -110,9 +122,8 @@ else:
     | **F** | **First Time?** | "Bye, Felicia!" |
     """)
 
-    st.write("---")
-    
     # HALL OF FAME
+    st.write("---")
     st.write("### 🏆 Hall of Fame")
     name = st.text_input("Enter your name:")
     if st.button("Save My Score"):
