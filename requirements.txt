@@ -1,0 +1,4 @@
+Python
+
+         restart_quiz()
+         st.rerun()
