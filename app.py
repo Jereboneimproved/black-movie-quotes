@@ -12,9 +12,15 @@ else:
 # --- APP SETUP ---
 st.set_page_config(page_title="The Culture Quote Quiz", page_icon="🎬")
 
-# Initialize Leaderboard in Session State
+# Initialize Leaderboard & Quiz State
 if 'leaderboard' not in st.session_state:
     st.session_state.leaderboard = []
+if 'quiz_step' not in st.session_state:
+    st.session_state.quiz_step = 0
+if 'score' not in st.session_state:
+    st.session_state.score = 0
+if 'hint' not in st.session_state:
+    st.session_state.hint = ""
 
 # --- MOVIE DATA ---
 quiz_data = [
@@ -29,16 +35,9 @@ quiz_data = [
     {"quote": "I’m not a businessman; I’m a business, man.", "options": ["Fade to Black", "Training Day", "The Fast and the Furious"], "answer": "Fade to Black", "actor": "Jay-Z"}
 ]
 
-# --- APP LOGIC ---
-if 'quiz_step' not in st.session_state:
-    st.session_state.quiz_step = 0
-if 'score' not in st.session_state:
-    st.session_state.score = 0
-if 'hint' not in st.session_state:
-    st.session_state.hint = ""
-
 st.title("🎬 The Culture Quote Quiz")
 
+# --- QUIZ INTERFACE ---
 if st.session_state.quiz_step < len(quiz_data):
     current = quiz_data[st.session_state.quiz_step]
     st.subheader(f"Question {st.session_state.quiz_step + 1} of {len(quiz_data)}")
@@ -47,7 +46,7 @@ if st.session_state.quiz_step < len(quiz_data):
     if st.button("💡 Need a Hint?"):
         try:
             model = genai.GenerativeModel('gemini-1.5-flash')
-            prompt = f"Give a funny, cryptic 1-sentence hint for the movie quote '{current['quote']}' featuring '{current['actor']}'. Don't name the movie."
+            prompt = f"Give a funny, cryptic 1-sentence hint for the movie quote '{current['quote']}' featuring '{current['actor']}'. Don't name the movie. Use 'cookout' vibes."
             response = model.generate_content(prompt)
             st.session_state.hint = response.text
         except:
@@ -58,34 +57,36 @@ if st.session_state.quiz_step < len(quiz_data):
 
     choice = st.radio("Choose the correct movie:", current['options'])
     
-    if st.button("Submit Answer"):
+    if st.button("Submit Answer 🎯"):
         if choice == current['answer']:
             st.session_state.score += 1
         st.session_state.quiz_step += 1
         st.session_state.hint = ""
         st.rerun()
 
+# --- RESULTS & LEADERBOARD ---
 else:
-    # --- FINAL GRADE LOGIC ---
     total = len(quiz_data)
     score = st.session_state.score
     percent = (score / total) * 100
     
-    if percent >= 90: grade = "A"
-    elif percent >= 80: grade = "B"
-    elif percent >= 70: grade = "C"
-    elif percent >= 60: grade = "D"
-    else: grade = "F"
+    if percent >= 90: grade, desc = "A", "Ancestor Approved"
+    elif percent >= 80: grade, desc = "B", "Blockbuster Buff"
+    elif percent >= 70: grade, desc = "C", "Cousin Status"
+    elif percent >= 60: grade, desc = "D", "Director’s Cut"
+    else: grade, desc = "F", "First Time?"
 
     st.header(f"🏁 Your Final Grade: {grade}")
     if grade == "A":
         st.balloons()
-        st.success("👑 YOU ARE THE KEEPER OF THE CULTURE!")
+        st.success(f"🏆 {desc}! You are the keeper of the culture.")
 
-    # --- THE GRADING SCALE TABLE ---
+    # SHARE BUTTON
+    share_text = f"I just got a Grade {grade} ({desc}) on the Culture Quote Quiz! My score: {score}/{total}. Can you beat me? 🎬🔥"
+    st.text_area("Copy this to your group chat:", value=share_text, height=70)
+
+    # GRADING TABLE
     st.write("### 📜 What does your grade mean?")
-    
-    # We use Markdown to build the table you requested
     st.markdown("""
     | Grade | Meaning | Vibe |
     | :--- | :--- | :--- |
@@ -97,27 +98,20 @@ else:
     """)
 
     st.write("---")
-
-    # --- LEADERBOARD SECTION ---
-    st.write("### 🏆 Enter the Hall of Fame")
+    
+    # LEADERBOARD SECTION
+    st.write("### 🏆 Hall of Fame")
     name = st.text_input("Enter your name to save your score:")
     if st.button("Save My Score"):
         if name:
-            # Adding the new score to the session-based leaderboard
-            st.session_state.leaderboard.append({
-                "Name": name, 
-                "Score": f"{score}/{total}", 
-                "Grade": grade
-            })
-            st.success(f"Score saved for {name}!")
+            st.session_state.leaderboard.append({"Name": name, "Score": f"{score}/{total}", "Grade": grade})
+            st.success("Score saved!")
 
     if st.session_state.leaderboard:
-        st.write("### Current Leaderboard")
-        # Displaying the list as a clean table
-        leader_df = pd.DataFrame(st.session_state.leaderboard)
-        st.dataframe(leader_df, use_container_width=True)
+        df = pd.DataFrame(st.session_state.leaderboard)
+        st.table(df)
 
-    if st.button("🔄 Try to improve your grade?"):
+    if st.button("🔄 Restart Quiz"):
         st.session_state.quiz_step = 0
         st.session_state.score = 0
         st.session_state.hint = ""
