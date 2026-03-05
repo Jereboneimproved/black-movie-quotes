@@ -42,8 +42,27 @@ quiz_data = [
 
 st.title("🎬 The Culture Quote Quiz")
 
+# --- HALFWAY CHECKPOINT LOGIC ---
+if st.session_state.quiz_step == 6 and 'halfway_seen' not in st.session_state:
+    st.header("⏸️ Intermission: The Oracle Speaks")
+    
+    with st.spinner("Analyzing your performance..."):
+        try:
+            model = genai.GenerativeModel('gemini-1.5-flash')
+            score_context = "doing amazing" if st.session_state.score >= 4 else "struggling badly"
+            prompt = f"Write a funny 1-sentence commentary to a person who has a score of {st.session_state.score}/5 in a Black cinema quiz. Be a bit sassy and use 'cookout' or 'cousin' vibes. They are {score_context}."
+            response = model.generate_content(prompt)
+            st.session_state.halfway_msg = response.text
+        except:
+            st.session_state.halfway_msg = "You're doing... something. Let's keep going."
+    
+    st.info(st.session_state.halfway_msg)
+    if st.button("Continue to the Second Half ➡️"):
+        st.session_state.halfway_seen = True
+        st.rerun()
+
 # --- QUIZ INTERFACE ---
-if st.session_state.quiz_step < len(quiz_data):
+elif st.session_state.quiz_step < len(quiz_data):
     current = quiz_data[st.session_state.quiz_step]
     
     if not st.session_state.current_options:
@@ -52,19 +71,17 @@ if st.session_state.quiz_step < len(quiz_data):
         st.session_state.current_options = shuffled
 
     st.subheader(f"Question {st.session_state.quiz_step + 1} of {len(quiz_data)}")
-    
     timer_placeholder = st.empty()
-    
     st.info(f"\"{current['quote']}\"")
     
     if st.button("💡 Need a Hint?"):
         try:
             model = genai.GenerativeModel('gemini-1.5-flash')
-            prompt = f"Give a funny, cryptic 1-sentence hint for the movie quote '{current['quote']}' featuring '{current['actor']}'. Use 'cookout' vibes."
+            prompt = f"Give a funny 1-sentence hint for the quote '{current['quote']}'. Don't name the movie."
             response = model.generate_content(prompt)
             st.session_state.hint = response.text
         except:
-            st.session_state.hint = "Clock is ticking!"
+            st.session_state.hint = "Instincts only!"
             
     if st.session_state.hint:
         st.write(f"*{st.session_state.hint}*")
@@ -79,31 +96,23 @@ if st.session_state.quiz_step < len(quiz_data):
         st.session_state.current_options = []
         st.rerun()
 
-    # THE VISUAL PANIC TIMER
+    # VISUAL PANIC TIMER
     for seconds in range(20, -1, -1):
         if seconds > 5:
             timer_placeholder.markdown(f"### ⏳ Time Remaining: **{seconds}s**")
         else:
-            # Add visual "alarm" emojis that change every second
             alarm = "🚨" if seconds % 2 == 0 else "⚠️"
             timer_placeholder.markdown(f"### :red[{alarm} HURRY UP: **{seconds}s** {alarm}]")
-            
-            # Send a "Toast" notification at 5 seconds left
             if seconds == 5:
-                st.toast("🚨 5 SECONDS LEFT! PICK ONE!", icon="🔥")
-        
+                st.toast("🚨 5 SECONDS LEFT!", icon="🔥")
         time.sleep(1)
-        
         if seconds == 0:
-            st.warning("Time's up! 'Bye, Felicia!'")
-            time.sleep(1)
             st.session_state.quiz_step += 1
             st.session_state.current_options = []
             st.rerun()
 
 # --- FINAL RESULTS ---
 else:
-    # ... (Rest of the results logic remains the same as previous step)
     total = len(quiz_data)
     score = st.session_state.score
     percent = (score / total) * 100
@@ -117,9 +126,11 @@ else:
     st.header(f"🏁 Final Grade: {grade}")
     st.markdown(f"### **{desc}**")
     
+    # SHARE MESSAGE
     share_text = f"I just got a Grade {grade} ({desc}) on the Culture Quote Quiz! Score: {score}/{total}. Can you beat me? 🎬🔥"
     st.text_area("Copy/Paste to your Group Chat:", value=share_text, height=70)
 
+    # GRADING TABLE
     st.markdown("""
     | Grade | Meaning | Vibe |
     | :--- | :--- | :--- |
@@ -143,8 +154,8 @@ else:
         st.table(df)
 
     if st.button("🔄 Play Again"):
-        st.session_state.quiz_step = 0
-        st.session_state.score = 0
-        st.session_state.hint = ""
-        st.session_state.current_options = []
+        # Reset everything including the halfway flag
+        for key in list(st.session_state.keys()):
+            if key != 'leaderboard': # Keep the hall of fame
+                del st.session_state[key]
         st.rerun()
