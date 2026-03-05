@@ -21,7 +21,7 @@ if 'quiz_step' not in st.session_state:
 if 'score' not in st.session_state:
     st.session_state.score = 0
 if 'history' not in st.session_state:
-    st.session_state.history = []  # To track correct/incorrect answers
+    st.session_state.history = []
 if 'hint' not in st.session_state:
     st.session_state.hint = ""
 if 'current_options' not in st.session_state:
@@ -60,74 +60,4 @@ if st.session_state.quiz_step < len(quiz_data):
     if st.button("💡 Need a Hint?"):
         try:
             model = genai.GenerativeModel('gemini-1.5-flash')
-            prompt = f"Give a funny 1-sentence hint for the quote '{current['quote']}'. Don't name the movie."
-            response = model.generate_content(prompt)
-            st.session_state.hint = response.text
-        except:
-            st.session_state.hint = "No clues for this one!"
-            
-    if st.session_state.hint:
-        st.write(f"*{st.session_state.hint}*")
-
-    choice = st.radio("Choose the correct movie:", st.session_state.current_options, key=f"q_{st.session_state.quiz_step}")
-    
-    if st.button("Submit Answer 🎯"):
-        is_correct = choice == current['answer']
-        if is_correct:
-            st.session_state.score += 1
-        
-        # RECORD HISTORY
-        st.session_state.history.append({
-            "Quote": current['quote'][:50] + "...",
-            "Your Answer": choice,
-            "Correct Answer": current['answer'],
-            "Result": "✅" if is_correct else "❌"
-        })
-        
-        st.session_state.quiz_step += 1
-        st.session_state.hint = ""
-        st.session_state.current_options = []
-        st.rerun()
-
-    # TIMER LOGIC
-    for seconds in range(20, -1, -1):
-        if seconds > 5:
-            timer_placeholder.markdown(f"### ⏳ Time Remaining: **{seconds}s**")
-        else:
-            alarm = "🚨" if seconds % 2 == 0 else "⚠️"
-            timer_placeholder.markdown(f"### :red[{alarm} HURRY UP: **{seconds}s** {alarm}]")
-        time.sleep(1)
-        if seconds == 0:
-            st.session_state.history.append({
-                "Quote": current['quote'][:50] + "...",
-                "Your Answer": "Timed Out",
-                "Correct Answer": current['answer'],
-                "Result": "❌"
-            })
-            st.session_state.quiz_step += 1
-            st.session_state.current_options = []
-            st.rerun()
-
-# --- FINAL RESULTS ---
-else:
-    total = len(quiz_data)
-    score = st.session_state.score
-    percent = (score / total) * 100
-    
-    if percent >= 90: grade, desc = "A", "Ancestor Approved"
-    elif percent >= 80: grade, desc = "B", "Blockbuster Buff"
-    elif percent >= 70: grade, desc = "C", "Cousin Status"
-    elif percent >= 60: grade, desc = "D", "Director’s Cut"
-    else: grade, desc = "F", "First Time?"
-
-    st.header(f"🏁 Final Grade: {grade}")
-    st.markdown(f"### **{desc}**")
-    
-    # --- NEW: REVIEW WRONG ANSWERS SECTION ---
-    with st.expander("👀 Review Your Answer Report"):
-        history_df = pd.DataFrame(st.session_state.history)
-        st.dataframe(history_df, use_container_width=True, hide_index=True)
-
-    # GRADING TABLE
-    st.markdown("""
-    | Grade | Meaning | V
+            prompt = f"Give a funny 1-
