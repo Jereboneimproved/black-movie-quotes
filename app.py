@@ -44,10 +44,26 @@ quiz_data = [
 
 st.title("🎬 The Culture Quote Quiz")
 
+# --- HALFWAY CHECKPOINT ---
+if st.session_state.quiz_step == 6 and 'halfway_seen' not in st.session_state:
+    st.header("⏸️ Intermission: The Oracle Speaks")
+    with st.spinner("Analyzing your performance..."):
+        try:
+            model = genai.GenerativeModel('gemini-1.5-flash')
+            score_context = "killing it" if st.session_state.score >= 4 else "struggling"
+            prompt = f"Write a funny 1-sentence commentary for someone with a {st.session_state.score}/5 score on a Black cinema quiz. Use 'cookout' vibes. They are {score_context}."
+            response = model.generate_content(prompt)
+            msg = response.text
+        except:
+            msg = "The ancestors are watching... let's see if you can pull this off."
+    st.info(msg)
+    if st.button("Continue to the Second Half ➡️"):
+        st.session_state.halfway_seen = True
+        st.rerun()
+
 # --- QUIZ INTERFACE ---
-if st.session_state.quiz_step < len(quiz_data):
+elif st.session_state.quiz_step < len(quiz_data):
     current = quiz_data[st.session_state.quiz_step]
-    
     if not st.session_state.current_options:
         shuffled = current['options'].copy()
         random.shuffle(shuffled)
@@ -64,7 +80,7 @@ if st.session_state.quiz_step < len(quiz_data):
             response = model.generate_content(prompt)
             st.session_state.hint = response.text
         except:
-            st.session_state.hint = "No clues for this one!"
+            st.session_state.hint = "Think back to the last family reunion."
             
     if st.session_state.hint:
         st.write(f"*{st.session_state.hint}*")
@@ -74,26 +90,22 @@ if st.session_state.quiz_step < len(quiz_data):
     if st.button("Submit Answer 🎯"):
         is_correct = choice == current['answer']
         lesson = ""
-        
         if not is_correct:
             try:
                 model = genai.GenerativeModel('gemini-1.5-flash')
-                p = f"In 1 short sentence, explain why the movie '{current['answer']}' is a classic and why the line '{current['quote']}' is iconic. Use cookout vibes."
+                p = f"Explain why '{current['answer']}' is iconic and the line '{current['quote']}' matters. 1 sentence, cookout vibes."
                 response = model.generate_content(p)
                 lesson = response.text
             except:
-                lesson = "This is a mandatory watch for the culture!"
-
-        if is_correct:
-            st.session_state.score += 1
+                lesson = "This is a culture essential!"
+        
+        if is_correct: st.session_state.score += 1
         
         st.session_state.history.append({
-            "Quote": current['quote'][:40] + "...",
-            "Correct Answer": current['answer'],
+            "Movie": current['answer'],
             "Result": "✅" if is_correct else "❌",
             "Culture Lesson": lesson if not is_correct else "You know your stuff!"
         })
-        
         st.session_state.quiz_step += 1
         st.session_state.hint = ""
         st.session_state.current_options = []
@@ -108,12 +120,7 @@ if st.session_state.quiz_step < len(quiz_data):
             timer_placeholder.markdown(f"### :red[{alarm} HURRY UP: **{seconds}s** {alarm}]")
         time.sleep(1)
         if seconds == 0:
-            st.session_state.history.append({
-                "Quote": current['quote'][:40] + "...",
-                "Correct Answer": current['answer'],
-                "Result": "❌ (Timed Out)",
-                "Culture Lesson": f"You were too slow! '{current['answer']}' is a classic you need to rewatch."
-            })
+            st.session_state.history.append({"Movie": current['answer'], "Result": "❌ (Timed Out)", "Culture Lesson": "Too slow! Rewatch this classic."})
             st.session_state.quiz_step += 1
             st.session_state.current_options = []
             st.rerun()
@@ -133,10 +140,13 @@ else:
     st.header(f"🏁 Final Grade: {grade}")
     st.markdown(f"### **{desc}**")
     
-   # This adds a modern 'info' or 'list' icon
-with st.expander("Review & Learn from the Culture", icon=":material/visibility:"):
-    history_df = pd.DataFrame(st.session_state.history)
-    st.table(history_df)# Using table for better readability of the long 'lesson' text
+    # CLICKABLE REVIEW
+    with st.expander("➡️ CLICK HERE to Review & Learn from the Culture", icon="📖"):
+        st.table(pd.DataFrame(st.session_state.history))
+
+    # SHARE BUTTON
+    share_text = f"I just got a Grade {grade} ({desc}) on the Culture Quote Quiz! My score: {score}/{total}. Can you beat me? 🎬🔥"
+    st.text_area("Copy/Paste to your Group Chat:", value=share_text, height=70)
 
     # GRADING TABLE
     st.markdown("""
@@ -145,27 +155,10 @@ with st.expander("Review & Learn from the Culture", icon=":material/visibility:"
     | **A** | **Ancestor Approved** | Keeper of the culture. |
     | **B** | **Blockbuster Buff** | Respect. |
     | **C** | **Cousin Status** | Don't touch the music. |
-    | **D** | **Director’s Cut** | Spend a weekend on Tubi. |
+    | **D** | **Director’s Cut** | Weekend on Tubi. |
     | **F** | **First Time?** | "Bye, Felicia!" |
     """)
 
     st.write("---")
     st.write("### 🏆 Hall of Fame")
     name = st.text_input("Enter your name:")
-    if st.button("Save My Score"):
-        if name:
-            st.session_state.leaderboard.append({"Name": name, "Score": f"{score}/{total}", "Grade": grade})
-            st.success("Score saved!")
-
-    if st.session_state.leaderboard:
-        df = pd.DataFrame(st.session_state.leaderboard)
-        st.table(df)
-
-    if st.button("🔄 Play Again"):
-        st.session_state.quiz_step = 0
-        st.session_state.score = 0
-        st.session_state.history = []
-        st.session_state.hint = ""
-        st.session_state.current_options = []
-        st.rerun()
-
