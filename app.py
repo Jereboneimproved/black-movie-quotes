@@ -60,4 +60,110 @@ if st.session_state.quiz_step < len(quiz_data):
     if st.button("💡 Need a Hint?"):
         try:
             model = genai.GenerativeModel('gemini-1.5-flash')
-            prompt = f"Give a funny 1-
+            prompt = f"Give a funny 1-sentence hint for the quote '{current['quote']}'. Don't name the movie."
+            response = model.generate_content(prompt)
+            st.session_state.hint = response.text
+        except:
+            st.session_state.hint = "No clues for this one!"
+            
+    if st.session_state.hint:
+        st.write(f"*{st.session_state.hint}*")
+
+    choice = st.radio("Choose the correct movie:", st.session_state.current_options, key=f"q_{st.session_state.quiz_step}")
+    
+    if st.button("Submit Answer 🎯"):
+        is_correct = choice == current['answer']
+        lesson = ""
+        
+        if not is_correct:
+            try:
+                model = genai.GenerativeModel('gemini-1.5-flash')
+                p = f"In 1 short sentence, explain why the movie '{current['answer']}' is a classic and why the line '{current['quote']}' is iconic. Use cookout vibes."
+                response = model.generate_content(p)
+                lesson = response.text
+            except:
+                lesson = "This is a mandatory watch for the culture!"
+
+        if is_correct:
+            st.session_state.score += 1
+        
+        st.session_state.history.append({
+            "Quote": current['quote'][:40] + "...",
+            "Correct Answer": current['answer'],
+            "Result": "✅" if is_correct else "❌",
+            "Culture Lesson": lesson if not is_correct else "You know your stuff!"
+        })
+        
+        st.session_state.quiz_step += 1
+        st.session_state.hint = ""
+        st.session_state.current_options = []
+        st.rerun()
+
+    # TIMER LOGIC
+    for seconds in range(20, -1, -1):
+        if seconds > 5:
+            timer_placeholder.markdown(f"### ⏳ Time Remaining: **{seconds}s**")
+        else:
+            alarm = "🚨" if seconds % 2 == 0 else "⚠️"
+            timer_placeholder.markdown(f"### :red[{alarm} HURRY UP: **{seconds}s** {alarm}]")
+        time.sleep(1)
+        if seconds == 0:
+            st.session_state.history.append({
+                "Quote": current['quote'][:40] + "...",
+                "Correct Answer": current['answer'],
+                "Result": "❌ (Timed Out)",
+                "Culture Lesson": f"You were too slow! '{current['answer']}' is a classic you need to rewatch."
+            })
+            st.session_state.quiz_step += 1
+            st.session_state.current_options = []
+            st.rerun()
+
+# --- FINAL RESULTS ---
+else:
+    total = len(quiz_data)
+    score = st.session_state.score
+    percent = (score / total) * 100
+    
+    if percent >= 90: grade, desc = "A", "Ancestor Approved"
+    elif percent >= 80: grade, desc = "B", "Blockbuster Buff"
+    elif percent >= 70: grade, desc = "C", "Cousin Status"
+    elif percent >= 60: grade, desc = "D", "Director’s Cut"
+    else: grade, desc = "F", "First Time?"
+
+    st.header(f"🏁 Final Grade: {grade}")
+    st.markdown(f"### **{desc}**")
+    
+    with st.expander("👀 Review & Learn from the Culture"):
+        history_df = pd.DataFrame(st.session_state.history)
+        st.table(history_df) # Using table for better readability of the long 'lesson' text
+
+    # GRADING TABLE
+    st.markdown("""
+    | Grade | Meaning | Vibe |
+    | :--- | :--- | :--- |
+    | **A** | **Ancestor Approved** | Keeper of the culture. |
+    | **B** | **Blockbuster Buff** | Respect. |
+    | **C** | **Cousin Status** | Don't touch the music. |
+    | **D** | **Director’s Cut** | Spend a weekend on Tubi. |
+    | **F** | **First Time?** | "Bye, Felicia!" |
+    """)
+
+    st.write("---")
+    st.write("### 🏆 Hall of Fame")
+    name = st.text_input("Enter your name:")
+    if st.button("Save My Score"):
+        if name:
+            st.session_state.leaderboard.append({"Name": name, "Score": f"{score}/{total}", "Grade": grade})
+            st.success("Score saved!")
+
+    if st.session_state.leaderboard:
+        df = pd.DataFrame(st.session_state.leaderboard)
+        st.table(df)
+
+    if st.button("🔄 Play Again"):
+        st.session_state.quiz_step = 0
+        st.session_state.score = 0
+        st.session_state.history = []
+        st.session_state.hint = ""
+        st.session_state.current_options = []
+        st.rerun()
