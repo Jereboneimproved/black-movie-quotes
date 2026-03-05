@@ -133,9 +133,10 @@ else:
     st.header(f"🏁 Final Grade: {grade}")
     st.markdown(f"### **{desc}**")
     
-    with st.expander("👀 Review & Learn from the Culture"):
-        history_df = pd.DataFrame(st.session_state.history)
-        st.table(history_df) # Using table for better readability of the long 'lesson' text
+   # This adds a modern 'info' or 'list' icon
+with st.expander("Review & Learn from the Culture", icon=":material/visibility:"):
+    history_df = pd.DataFrame(st.session_state.history)
+    st.table(history_df)# Using table for better readability of the long 'lesson' text
 
     # GRADING TABLE
     st.markdown("""
@@ -167,3 +168,4 @@ else:
         st.session_state.hint = ""
         st.session_state.current_options = []
         st.rerun()
+
