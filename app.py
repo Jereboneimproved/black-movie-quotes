@@ -20,6 +20,8 @@ if 'quiz_step' not in st.session_state:
     st.session_state.quiz_step = 0
 if 'score' not in st.session_state:
     st.session_state.score = 0
+if 'history' not in st.session_state:
+    st.session_state.history = []  # To track correct/incorrect answers
 if 'hint' not in st.session_state:
     st.session_state.hint = ""
 if 'current_options' not in st.session_state:
@@ -42,27 +44,8 @@ quiz_data = [
 
 st.title("🎬 The Culture Quote Quiz")
 
-# --- HALFWAY CHECKPOINT LOGIC ---
-if st.session_state.quiz_step == 6 and 'halfway_seen' not in st.session_state:
-    st.header("⏸️ Intermission: The Oracle Speaks")
-    
-    with st.spinner("Analyzing your performance..."):
-        try:
-            model = genai.GenerativeModel('gemini-1.5-flash')
-            score_context = "doing amazing" if st.session_state.score >= 4 else "struggling badly"
-            prompt = f"Write a funny 1-sentence commentary to a person who has a score of {st.session_state.score}/5 in a Black cinema quiz. Be a bit sassy and use 'cookout' or 'cousin' vibes. They are {score_context}."
-            response = model.generate_content(prompt)
-            st.session_state.halfway_msg = response.text
-        except:
-            st.session_state.halfway_msg = "You're doing... something. Let's keep going."
-    
-    st.info(st.session_state.halfway_msg)
-    if st.button("Continue to the Second Half ➡️"):
-        st.session_state.halfway_seen = True
-        st.rerun()
-
 # --- QUIZ INTERFACE ---
-elif st.session_state.quiz_step < len(quiz_data):
+if st.session_state.quiz_step < len(quiz_data):
     current = quiz_data[st.session_state.quiz_step]
     
     if not st.session_state.current_options:
@@ -81,7 +64,7 @@ elif st.session_state.quiz_step < len(quiz_data):
             response = model.generate_content(prompt)
             st.session_state.hint = response.text
         except:
-            st.session_state.hint = "Instincts only!"
+            st.session_state.hint = "No clues for this one!"
             
     if st.session_state.hint:
         st.write(f"*{st.session_state.hint}*")
@@ -89,24 +72,38 @@ elif st.session_state.quiz_step < len(quiz_data):
     choice = st.radio("Choose the correct movie:", st.session_state.current_options, key=f"q_{st.session_state.quiz_step}")
     
     if st.button("Submit Answer 🎯"):
-        if choice == current['answer']:
+        is_correct = choice == current['answer']
+        if is_correct:
             st.session_state.score += 1
+        
+        # RECORD HISTORY
+        st.session_state.history.append({
+            "Quote": current['quote'][:50] + "...",
+            "Your Answer": choice,
+            "Correct Answer": current['answer'],
+            "Result": "✅" if is_correct else "❌"
+        })
+        
         st.session_state.quiz_step += 1
         st.session_state.hint = ""
         st.session_state.current_options = []
         st.rerun()
 
-    # VISUAL PANIC TIMER
+    # TIMER LOGIC
     for seconds in range(20, -1, -1):
         if seconds > 5:
             timer_placeholder.markdown(f"### ⏳ Time Remaining: **{seconds}s**")
         else:
             alarm = "🚨" if seconds % 2 == 0 else "⚠️"
             timer_placeholder.markdown(f"### :red[{alarm} HURRY UP: **{seconds}s** {alarm}]")
-            if seconds == 5:
-                st.toast("🚨 5 SECONDS LEFT!", icon="🔥")
         time.sleep(1)
         if seconds == 0:
+            st.session_state.history.append({
+                "Quote": current['quote'][:50] + "...",
+                "Your Answer": "Timed Out",
+                "Correct Answer": current['answer'],
+                "Result": "❌"
+            })
             st.session_state.quiz_step += 1
             st.session_state.current_options = []
             st.rerun()
@@ -126,36 +123,11 @@ else:
     st.header(f"🏁 Final Grade: {grade}")
     st.markdown(f"### **{desc}**")
     
-    # SHARE MESSAGE
-    share_text = f"I just got a Grade {grade} ({desc}) on the Culture Quote Quiz! Score: {score}/{total}. Can you beat me? 🎬🔥"
-    st.text_area("Copy/Paste to your Group Chat:", value=share_text, height=70)
+    # --- NEW: REVIEW WRONG ANSWERS SECTION ---
+    with st.expander("👀 Review Your Answer Report"):
+        history_df = pd.DataFrame(st.session_state.history)
+        st.dataframe(history_df, use_container_width=True, hide_index=True)
 
     # GRADING TABLE
     st.markdown("""
-    | Grade | Meaning | Vibe |
-    | :--- | :--- | :--- |
-    | **A** | **Ancestor Approved** | You are the keeper of the culture. |
-    | **B** | **Blockbuster Buff** | You know your classics, respect. |
-    | **C** | **Cousin Status** | You're invited to the cookout, but don't touch the music. |
-    | **D** | **Director’s Cut** | You need to spend a weekend on Tubi or Netflix. |
-    | **F** | **First Time?** | "Bye, Felicia!" |
-    """)
-
-    st.write("---")
-    st.write("### 🏆 Hall of Fame")
-    name = st.text_input("Enter your name:")
-    if st.button("Save My Score"):
-        if name:
-            st.session_state.leaderboard.append({"Name": name, "Score": f"{score}/{total}", "Grade": grade})
-            st.success("Score saved!")
-
-    if st.session_state.leaderboard:
-        df = pd.DataFrame(st.session_state.leaderboard)
-        st.table(df)
-
-    if st.button("🔄 Play Again"):
-        # Reset everything including the halfway flag
-        for key in list(st.session_state.keys()):
-            if key != 'leaderboard': # Keep the hall of fame
-                del st.session_state[key]
-        st.rerun()
+    | Grade | Meaning | V
