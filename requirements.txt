@@ -1,4 +1,3 @@
-Python
-
-         restart_quiz()
-         st.rerun()
+streamlit
+google-generativeai
+pandas
