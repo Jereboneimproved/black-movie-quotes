@@ -66,10 +66,10 @@ if st.session_state.quiz_step < len(quiz_data):
         st.rerun()
 
 else:
-    # --- RESULTS & LEADERBOARD ---
+    # --- FINAL GRADE LOGIC ---
     total = len(quiz_data)
     score = st.session_state.score
-    percent = (score/total) * 100
+    percent = (score / total) * 100
     
     if percent >= 90: grade = "A"
     elif percent >= 80: grade = "B"
@@ -77,25 +77,48 @@ else:
     elif percent >= 60: grade = "D"
     else: grade = "F"
 
-    st.header(f"Your Grade: {grade}")
-    st.balloons() if grade == "A" else None
+    st.header(f"🏁 Your Final Grade: {grade}")
+    if grade == "A":
+        st.balloons()
+        st.success("👑 YOU ARE THE KEEPER OF THE CULTURE!")
 
-    # ADD TO LEADERBOARD
+    # --- THE GRADING SCALE TABLE ---
+    st.write("### 📜 What does your grade mean?")
+    
+    # We use Markdown to build the table you requested
+    st.markdown("""
+    | Grade | Meaning | Vibe |
+    | :--- | :--- | :--- |
+    | **A** | **Ancestor Approved** | You are the keeper of the culture. |
+    | **B** | **Blockbuster Buff** | You know your classics, respect. |
+    | **C** | **Cousin Status** | You're invited to the cookout, but don't touch the music. |
+    | **D** | **Director’s Cut** | You need to spend a weekend on Tubi or Netflix. |
+    | **F** | **First Time?** | "Bye, Felicia!" |
+    """)
+
+    st.write("---")
+
+    # --- LEADERBOARD SECTION ---
     st.write("### 🏆 Enter the Hall of Fame")
     name = st.text_input("Enter your name to save your score:")
     if st.button("Save My Score"):
         if name:
-            st.session_state.leaderboard.append({"Name": name, "Score": f"{score}/{total}", "Grade": grade})
-            st.success("Score saved!")
+            # Adding the new score to the session-based leaderboard
+            st.session_state.leaderboard.append({
+                "Name": name, 
+                "Score": f"{score}/{total}", 
+                "Grade": grade
+            })
+            st.success(f"Score saved for {name}!")
 
-    # DISPLAY LEADERBOARD
     if st.session_state.leaderboard:
-        st.write("---")
         st.write("### Current Leaderboard")
-        df = pd.DataFrame(st.session_state.leaderboard)
-        st.table(df)
+        # Displaying the list as a clean table
+        leader_df = pd.DataFrame(st.session_state.leaderboard)
+        st.dataframe(leader_df, use_container_width=True)
 
-    if st.button("🔄 Restart Quiz"):
+    if st.button("🔄 Try to improve your grade?"):
         st.session_state.quiz_step = 0
         st.session_state.score = 0
+        st.session_state.hint = ""
         st.rerun()
