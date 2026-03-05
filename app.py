@@ -46,7 +46,6 @@ st.title("🎬 The Culture Quote Quiz")
 if st.session_state.quiz_step < len(quiz_data):
     current = quiz_data[st.session_state.quiz_step]
     
-    # Shuffle options once
     if not st.session_state.current_options:
         shuffled = current['options'].copy()
         random.shuffle(shuffled)
@@ -54,7 +53,6 @@ if st.session_state.quiz_step < len(quiz_data):
 
     st.subheader(f"Question {st.session_state.quiz_step + 1} of {len(quiz_data)}")
     
-    # TIMER DISPLAY
     timer_placeholder = st.empty()
     
     st.info(f"\"{current['quote']}\"")
@@ -62,11 +60,11 @@ if st.session_state.quiz_step < len(quiz_data):
     if st.button("💡 Need a Hint?"):
         try:
             model = genai.GenerativeModel('gemini-1.5-flash')
-            prompt = f"Give a funny, cryptic 1-sentence hint for the movie quote '{current['quote']}' featuring '{current['actor']}'. Don't name the movie."
+            prompt = f"Give a funny, cryptic 1-sentence hint for the movie quote '{current['quote']}' featuring '{current['actor']}'. Use 'cookout' vibes."
             response = model.generate_content(prompt)
             st.session_state.hint = response.text
         except:
-            st.session_state.hint = "Time is ticking! Use your instincts."
+            st.session_state.hint = "Clock is ticking!"
             
     if st.session_state.hint:
         st.write(f"*{st.session_state.hint}*")
@@ -81,12 +79,23 @@ if st.session_state.quiz_step < len(quiz_data):
         st.session_state.current_options = []
         st.rerun()
 
-    # TIMER LOGIC: Runs after the UI is rendered
+    # THE VISUAL PANIC TIMER
     for seconds in range(20, -1, -1):
-        timer_placeholder.metric("⏳ Time Remaining", f"{seconds}s")
+        if seconds > 5:
+            timer_placeholder.markdown(f"### ⏳ Time Remaining: **{seconds}s**")
+        else:
+            # Add visual "alarm" emojis that change every second
+            alarm = "🚨" if seconds % 2 == 0 else "⚠️"
+            timer_placeholder.markdown(f"### :red[{alarm} HURRY UP: **{seconds}s** {alarm}]")
+            
+            # Send a "Toast" notification at 5 seconds left
+            if seconds == 5:
+                st.toast("🚨 5 SECONDS LEFT! PICK ONE!", icon="🔥")
+        
         time.sleep(1)
+        
         if seconds == 0:
-            st.warning("Time's up! Moving to next question...")
+            st.warning("Time's up! 'Bye, Felicia!'")
             time.sleep(1)
             st.session_state.quiz_step += 1
             st.session_state.current_options = []
@@ -94,6 +103,7 @@ if st.session_state.quiz_step < len(quiz_data):
 
 # --- FINAL RESULTS ---
 else:
+    # ... (Rest of the results logic remains the same as previous step)
     total = len(quiz_data)
     score = st.session_state.score
     percent = (score / total) * 100
@@ -107,11 +117,9 @@ else:
     st.header(f"🏁 Final Grade: {grade}")
     st.markdown(f"### **{desc}**")
     
-    # SHARE MESSAGE
     share_text = f"I just got a Grade {grade} ({desc}) on the Culture Quote Quiz! Score: {score}/{total}. Can you beat me? 🎬🔥"
     st.text_area("Copy/Paste to your Group Chat:", value=share_text, height=70)
 
-    # GRADING TABLE
     st.markdown("""
     | Grade | Meaning | Vibe |
     | :--- | :--- | :--- |
@@ -122,7 +130,6 @@ else:
     | **F** | **First Time?** | "Bye, Felicia!" |
     """)
 
-    # HALL OF FAME
     st.write("---")
     st.write("### 🏆 Hall of Fame")
     name = st.text_input("Enter your name:")
